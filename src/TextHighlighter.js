@@ -173,8 +173,10 @@
                 chunks: group,
                 timestamp: timestamp,
                 toString: function () {
+                    var index = -1;
                     return group.map(function (h) {
-                        return h.textContent;
+                        index++;
+                        return processText(group, index);;
                     }).join('');
                 }
             });
@@ -182,6 +184,155 @@
 
         return grouped;
     }
+
+    function processText(elements, index) {
+        var current = elements[index];
+        var currentParent = getParent(current);
+        var isCurrentParentInline = getStyle(currentParent, 'display') === 'inline';
+        var isCurrentChildOfTable = isChildOfTable(current, 10);
+        var next = null;
+        var isNextChildOfTable = false;
+        var isNextParentInline = true;
+        var nextParent = null;
+        if (elements[index + 1]) {
+            next = elements[index + 1];
+            nextParent = getParent(next);
+            isNextChildOfTable = isChildOfTable(next, 10);
+            isNextParentInline = getStyle(nextParent, 'display') === 'inline';
+        }
+        var prev;
+        if (elements[index - 1]) {
+            prev = elements[index - 1];
+        }
+        if (isCurrentChildOfTable) {
+            var rval;
+            var trc = getTr(current, 10);
+            var trn;
+            var tdc = getTd(current, 10);
+            var tdn;
+            if (next) {
+                trn = getTr(next, 10);
+                tdn = getTd(next, 10);
+            }
+            var tdp;
+            if (prev) {
+                tdp = getTd(prev, 10);
+            }
+            if (tdp && tdc) {
+                if (tdc.textContent != tdp.textContent) {
+                    rval = '|' + current.textContent;
+                } else {
+                    rval = ' ' + current.textContent.trim();
+                }
+            } else { rval = '|' + current.textContent + '| '; }
+            if (tdn && tdc) {
+                if (tdc.textContent != tdn.textContent) {
+                    rval += '| ';
+                }
+            } else {
+                rval += '|';
+            }
+            if (trn && trc) {
+                if (trc.textContent != trn.textContent) {
+                    rval += '\n\n';
+                }
+            }
+            if (!isNextChildOfTable) {
+                rval += '\n\n';
+            }
+            return rval;
+        }
+        if (!isCurrentParentInline || isNextChildOfTable) {
+            return current.textContent + '\n\n';
+        } else {
+            return current.textContent;
+        }
+    }
+    /**
+     * Check if element is child of 'table' and return reference to 'table', otherwise return null.
+     * @param element Html element
+     * @param depth Depth limit.
+     */
+    function isChildOfTable(element, depth) {
+        if (depth === 0) {
+            return null;
+        }
+        if (element.parentElement) {
+            if (element.parentElement.tagName.toUpperCase() === 'TABLE') {
+                return element.parentElement;
+            } else {
+                return isChildOfTable(element.parentElement, --depth);
+            }
+        }   else {
+            return false;
+        }
+    }
+    /**
+     * Get html element css property value
+     * @param elem Html element
+     * @param cssProp Css property
+     */
+    function getStyle(elem, cssProp) {
+        // IE
+        if (elem.currentStyle) {
+          return elem.currentStyle[cssProp];
+        // other browsers
+        } else if (document.defaultView &&
+                          document.defaultView.getComputedStyle) {
+          return document.defaultView.getComputedStyle(elem,
+       null).getPropertyValue(cssProp);
+        // fallback
+        } else {
+          return null;
+        }
+       }
+
+    /**
+     * Recursive function for checking if element is child of table row. Return reference to table row
+     * or 'null' if element is not child of table row.
+     * @param {*} element Element
+     * @param {*} depth Depth limit
+     */
+    function getTr(element, depth) {
+        if (depth === 0) {
+            return null;
+        }
+        if (element.parentElement) {
+            if (element.parentElement.tagName.toUpperCase() === 'TR') {
+                return element.parentElement;
+            } else {
+                return getTr(element.parentElement, --depth);
+            }
+        }
+    }
+    /**
+     * Return first parent different from 'span'
+     * @param {*} element HTML element
+     */
+    function getParent(element) {
+        return element.parentElement.tagName !== 'SPAN' ?
+            element.parentElement : getParent(element.parentElement);
+    }
+
+    /**
+     * Recursive function for checking if element is child of table cell. Return reference to table cell
+     * or 'null' if element is not child of table row.
+     * @param {*} element Element
+     * @param {*} depth Depth limit
+     */
+    function getTd(element, depth) {
+        if (depth === 0) {
+            return null;
+        }
+        if (element.parentElement) {
+            if (element.parentElement.tagName.toUpperCase() === 'TD' || element.parentElement.tagName.toUpperCase() === 'TH') {
+                return element.parentElement;
+            } else {
+                return getTd(element.parentElement, --depth);
+            }
+        }
+    }
+
 
     /**
      * Utility functions to make DOM manipulation easier.
